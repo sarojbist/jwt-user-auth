@@ -4,9 +4,13 @@ const User = require("./models/userModel.js");
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
+const dotenv = require('dotenv');
+
+// Load environment variables
+dotenv.config();
 
 const app = express();
-app.use(express.json())  //will understand json format of input
+app.use(express.json())  // will understand json format of input
 app.use(cookieParser());
 
 connectDB();
@@ -14,18 +18,18 @@ connectDB();
 app.post("/register-user", async (request, response) => {
     try {
         // getting data from body
-        const { name, email, password } = request.body; //without parsing json, we'll get undefined
+        const { name, email, password } = request.body; // without parsing json, we'll get undefined
         // make sure all data exists
         if (!name || !email || !password) {
             return response.status(400).send("Please Provide all the data");
         }
 
-        // check if user already exits -email
+        // check if user already exists - email
         const userExists = await User.findOne({ email })
         if (userExists) {
             return response.status(401).send("User Already Exists");
         }
-        //encrypt password
+        // encrypt password
         const encPass = await bcrypt.hash(password, 10)
 
         // add user to db
@@ -37,10 +41,10 @@ app.post("/register-user", async (request, response) => {
 
         // send jwt token to user
         const token = jwt.sign(
-            { id: newUser._id, email }, //payload
-            'shhhhhhhhhh', //jwt secret
+            { id: newUser._id, email }, // payload
+            process.env.JWT_SECRET, // jwt secret from .env
             {
-                expiresIn: "2h"
+                expiresIn: process.env.JWT_EXPIRES_IN // token expiration from .env
             }
         )
         newUser.token = token;
@@ -61,7 +65,7 @@ app.post("/login-user", async (request, response) => {
         // get data from body
         const { email, password } = request.body;
 
-        //check data is not empty
+        // check data is not empty
         if (!email || !password) {
             return response.status(400).send("Please Provide all the data");
         }
@@ -80,8 +84,8 @@ app.post("/login-user", async (request, response) => {
         // send a token
         const token = jwt.sign(
             { id: user._id, email },
-            'shhhhhhhhhh', // jwt secret
-            { expiresIn: "2h" }
+            process.env.JWT_SECRET, // jwt secret from .env
+            { expiresIn: process.env.JWT_EXPIRES_IN } // token expiration from .env
         );
         // Hide password in the response
         user.token = token;
@@ -89,9 +93,8 @@ app.post("/login-user", async (request, response) => {
 
         // cookie section
         const options = {
-            expires: new Date(Date.now() + 24 * 60 * 60 * 1000),
+            expires: new Date(Date.now() + (process.env.COOKIE_EXPIRES_IN * 24 * 60 * 60 * 1000)), // set cookie expiration from .env
             httpOnly: true,
-
         }
         response.status(200).cookie("token", token, options).json({
             success: true,
@@ -115,7 +118,7 @@ app.get("/profile", async (request, response) => {
     }
     // verify jwt
     try {
-        const decoded = jwt.verify(token, 'shhhhhhhhhh'); // Use the same secret as used during token generation
+        const decoded = jwt.verify(token, process.env.JWT_SECRET); // Use the same secret as used during token generation
         request.user = decoded;
 
         // Allow access to the profile route
@@ -130,6 +133,7 @@ app.get("/profile", async (request, response) => {
     }
 })
 
-app.listen(5000, () => {
-    console.log("App is running");
+const PORT = process.env.PORT || 5000; // Use port from .env or fallback to 5000
+app.listen(PORT, () => {
+    console.log("App is running on port", PORT);
 })
