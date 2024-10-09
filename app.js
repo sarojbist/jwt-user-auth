@@ -93,7 +93,7 @@ app.post("/login-user", async (request, response) => {
 
         // cookie section
         const options = {
-            expires: new Date(Date.now() + (process.env.COOKIE_EXPIRES_IN * 24 * 60 * 60 * 1000)), // set cookie expiration from .env
+            expires: new Date(Date.now() + (1 * 24 * 60 * 60 * 1000)), // set cookie expiration from .env
             httpOnly: true,
         }
         response.status(200).cookie("token", token, options).json({
