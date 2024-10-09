@@ -4,15 +4,12 @@ const User = require("./models/userModel.js");
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
+
 const app = express();
 app.use(express.json())  //will understand json format of input
 app.use(cookieParser());
 
 connectDB();
-
-app.get("/", (req, res) => {
-    res.send("Say Hello")
-})
 
 app.post("/register-user", async (request, response) => {
     try {
@@ -37,23 +34,23 @@ app.post("/register-user", async (request, response) => {
             email,
             password: encPass
         });
-       
+
         // send jwt token to user
         const token = jwt.sign(
-            { id: newUser._id, email },
+            { id: newUser._id, email }, //payload
             'shhhhhhhhhh', //jwt secret
             {
                 expiresIn: "2h"
             }
         )
         newUser.token = token;
-      
+
         // Save the new user to the database
         await newUser.save();
         newUser.password = undefined;
 
         response.status(201).json(newUser);
-       
+
     } catch (err) {
         console.log(err)
     }
@@ -62,7 +59,7 @@ app.post("/register-user", async (request, response) => {
 app.post("/login-user", async (request, response) => {
     try {
         // get data from body
-        const {email, password} = request.body;
+        const { email, password } = request.body;
 
         //check data is not empty
         if (!email || !password) {
@@ -70,13 +67,13 @@ app.post("/login-user", async (request, response) => {
         }
 
         // find user in db
-        const user = await User.findOne({email})
-        if(!user) {
+        const user = await User.findOne({ email })
+        if (!user) {
             return response.status(404).send("User Not Found");
         }
         // match password
         const isMatch = await bcrypt.compare(password, user.password);
-        
+
         if (!isMatch) {
             return response.status(401).send("Invalid password");
         }
@@ -92,7 +89,7 @@ app.post("/login-user", async (request, response) => {
 
         // cookie section
         const options = {
-            expires: new Date(Date.now() + 24* 60 * 60 * 1000),
+            expires: new Date(Date.now() + 24 * 60 * 60 * 1000),
             httpOnly: true,
 
         }
@@ -102,8 +99,34 @@ app.post("/login-user", async (request, response) => {
             user
         })
 
-    } catch(error) {
+    } catch (error) {
         console.log(error)
+    }
+})
+
+// this is protected route
+app.get("/profile", async (request, response) => {
+    // get token
+    const token = request.cookies.token;
+
+    // if token is not provided
+    if (!token) {
+        response.status(403).send("Token is not provided")
+    }
+    // verify jwt
+    try {
+        const decoded = jwt.verify(token, 'shhhhhhhhhh'); // Use the same secret as used during token generation
+        request.user = decoded;
+
+        // Allow access to the profile route
+        return response.status(200).json({
+            success: true,
+            message: `Welcome to your profile, ${request.user.email}`,
+            user: request.user
+        });
+
+    } catch (error) {
+        return response.status(401).send("Invalid or expired token.");
     }
 })
 
